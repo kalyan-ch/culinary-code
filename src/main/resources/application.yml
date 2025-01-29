@@ -1,0 +1,15 @@
+
+spring:
+  application:
+    name: culinaryCode
+  jpa:
+    hibernate:
+      ddl-auto: update
+  datasource:
+    url: jdbc:postgresql://localhost:5432/culinaryCode?currentSchema=recipes
+    username: developer
+    password: postgresDev
+    driver: org.postgresql.Driver
+
+server:
+  port: 8090
