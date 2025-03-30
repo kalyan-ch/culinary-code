@@ -5,6 +5,7 @@ import com.wb.culinaryCode.model.Recipe;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import java.util.List;
 import java.util.Optional;
 
 @Service
@@ -15,5 +16,9 @@ public class RecipeService {
 
     public Optional<Recipe> getRecipeById(Long recipeId){
         return recipeRepository.findById(recipeId);
+    }
+
+    public List<Recipe> getRecipesByIds(List<Long> recipeIds) {
+        return recipeRepository.findAllById(recipeIds);
     }
 }

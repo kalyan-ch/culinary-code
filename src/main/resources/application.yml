@@ -3,6 +3,7 @@ spring:
   application:
     name: culinaryCode
   jpa:
+    show-sql: false
     hibernate:
       ddl-auto: update
   datasource:
