@@ -1,10 +1,10 @@
 package com.wb.culinaryCode.controller;
 
-import com.wb.culinaryCode.model.Recipe;
+import com.wb.culinaryCode.model.rest.RecipeDTO;
+import com.wb.culinaryCode.model.rest.RecipeDetailDTO;
 import com.wb.culinaryCode.service.RecipeService;
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -15,11 +15,10 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/v1")
-@CrossOrigin(origins = "http://localhost:5173")
+@RequiredArgsConstructor
 public class RecipeController {
 
-    @Autowired
-    private RecipeService recipeService;
+    private final RecipeService recipeService;
 
     @GetMapping("/")
     public ResponseEntity<String> getWelcomeMessage() {
@@ -27,7 +26,7 @@ public class RecipeController {
     }
 
     @GetMapping("/recipe/{recipeId}")
-    public ResponseEntity<Recipe> getRecipeById(@PathVariable Long recipeId) {
+    public ResponseEntity<RecipeDetailDTO> getRecipeById(@PathVariable Long recipeId) {
         var recipeOpt = recipeService.getRecipeById(recipeId);
 
         return recipeOpt.map(ResponseEntity::ok)
@@ -35,7 +34,7 @@ public class RecipeController {
     }
 
     @GetMapping("/recipes")
-    public ResponseEntity<List<Recipe>> getRecipesByIds(@RequestParam List<Long> recipeIds) {
+    public ResponseEntity<List<RecipeDTO>> getRecipesByIds(@RequestParam List<Long> recipeIds) {
         return ResponseEntity.ok(recipeService.getRecipesByIds(recipeIds));
     }
 }
