@@ -1,4 +1,4 @@
-package com.wb.culinaryCode.model.rest;
+package com.wb.culinaryCode.model.recipe.rest;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;

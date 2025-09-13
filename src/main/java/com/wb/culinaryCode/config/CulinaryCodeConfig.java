@@ -1,7 +1,7 @@
 package com.wb.culinaryCode.config;
 
-import com.wb.culinaryCode.model.RecipeIngredient;
-import com.wb.culinaryCode.model.rest.IngredientsDTO;
+import com.wb.culinaryCode.model.recipe.RecipeIngredient;
+import com.wb.culinaryCode.model.recipe.rest.IngredientsDTO;
 import org.modelmapper.ModelMapper;
 import org.modelmapper.PropertyMap;
 import org.springframework.context.annotation.Bean;

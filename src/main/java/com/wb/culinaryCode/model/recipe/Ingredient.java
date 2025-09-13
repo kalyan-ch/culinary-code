@@ -1,4 +1,4 @@
-package com.wb.culinaryCode.model;
+package com.wb.culinaryCode.model.recipe;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;

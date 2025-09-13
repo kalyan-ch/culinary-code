@@ -8,6 +8,8 @@ CREATE TABLE IF NOT EXISTS recipes.recipe (
     user_id BIGINT NOT NULL,
     method TEXT,
     preparation TEXT,
+    notes TEXT,
+    image_url TEXT,
     servings INT,
     prep_time INT,
     cook_time INT,

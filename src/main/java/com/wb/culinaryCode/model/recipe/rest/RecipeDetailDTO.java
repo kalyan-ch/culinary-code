@@ -1,4 +1,4 @@
-package com.wb.culinaryCode.model.rest;
+package com.wb.culinaryCode.model.recipe.rest;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -11,9 +11,15 @@ import java.util.List;
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
-public class RecipeDTO {
+public class RecipeDetailDTO {
     private Long id;
     private String name;
     private String description;
+    private Integer cookTime;
+    private Integer prepTime;
+    private String method;
+    private Integer servings;
+    private Long userId;
     private List<String> cuisines;
+    private List<IngredientsDTO> ingredients;
 }

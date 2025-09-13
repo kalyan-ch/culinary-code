@@ -1,4 +1,4 @@
-package com.wb.culinaryCode.model;
+package com.wb.culinaryCode.model.recipe;
 
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.CollectionTable;
@@ -53,6 +53,12 @@ public class Recipe {
 
     @Column(name ="cook_time")
     private int cookTime;
+
+    @Column(name ="notes")
+    private String notes;
+
+    @Column(name ="image_url")
+    private String imageUrl;
 
     @CreationTimestamp
     @Column(name ="created_at")
