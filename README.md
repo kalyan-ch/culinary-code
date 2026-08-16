@@ -1,10 +1,10 @@
 # CulinaryCode
 
-A Spring Boot REST API for managing recipes, ingredients, and users. Built with Java 21, Spring Boot 3.4, and PostgreSQL, using Flyway for schema migrations.
+A Spring Boot REST API for managing recipes, ingredients, and users. Built with Java 23, Spring Boot 3.4, and PostgreSQL, using Flyway for schema migrations.
 
 ## Tech Stack
 
-- **Language / Runtime:** Java 21
+- **Language / Runtime:** Java 23
 - **Framework:** Spring Boot 3.4.2 (Web, Data JPA)
 - **Database:** PostgreSQL 16 (via Docker), schema-managed with Flyway
 - **Build tool:** Gradle (wrapper included)
@@ -58,9 +58,13 @@ All tables live in a dedicated `recipes` Postgres schema, created and versioned 
 | `GET` | `/api/v1/recipe/{recipeId}` | Fetch a single recipe with full detail (ingredients, cuisines, etc.), 404 if not found |
 | `POST` | `/api/v1/recipe/create` | Create a new recipe from a `RecipeCreateRequest` |
 | `GET` | `/api/v1/recipe/recipes?recipeIds=...` | Fetch a summary (`RecipeDTO`) for a batch of recipe IDs |
-| `POST` | `/api/v1/login` | Placeholder login endpoint — returns a static success message, no real authentication yet (CORS enabled for `http://localhost:5173`, suggesting a Vite-based frontend) |
+| `POST` | `/api/v1/login` | Placeholder login endpoint — returns a static success message, no real authentication yet |
 
 Swagger UI is available via `springdoc-openapi` once the app is running.
+
+### CORS
+
+All `/api/v1/**` endpoints allow cross-origin requests from the origin(s) configured in `app.cors.allowed-origins` (`application.yml`), applied globally via a `WebMvcConfigurer` bean in `CulinaryCodeConfig`. Defaults to `http://localhost:3000` to match the [culinary-code-ui](../culinary-code-ui) dev server.
 
 ## Running Locally
 
@@ -85,6 +89,7 @@ Swagger UI is available via `springdoc-openapi` once the app is running.
 
 This is an early-stage project:
 - Only the **recipe** domain has real functionality; **authentication** is a stub (no password hashing, JWT, or session handling).
+- CORS origin is currently a single hardcoded default (`http://localhost:3000`); no per-environment (staging/prod) origin list yet.
 - No `Recipe` → `RecipeUser` JPA relationship — ownership is tracked by a raw `userId` long.
 - No pagination, validation, or global exception handling on the REST layer yet.
 - Test coverage is minimal (one smoke test).
