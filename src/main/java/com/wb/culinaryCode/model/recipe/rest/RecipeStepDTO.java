@@ -5,15 +5,12 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-import java.util.UUID;
-
 @Builder
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
-public class RecipeDTO {
-    private UUID id;
-    private String title;
-    private String description;
-    private String cuisine;
+public class RecipeStepDTO {
+    private Integer stepNumber;
+    private String instruction;
+    private Integer timerMinutes;
 }

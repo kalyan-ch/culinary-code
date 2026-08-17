@@ -2,19 +2,12 @@
 spring:
   application:
     name: culinaryCode
+  profiles:
+    active: local
   jpa:
     show-sql: false
     hibernate:
-      ddl-auto: update
-  datasource:
-    url: jdbc:postgresql://localhost:5432/culinaryCode?currentSchema=recipes
-    username: developer
-    password: postgresDev
-    driver: org.postgresql.Driver
+      ddl-auto: validate
 
 server:
   port: 8090
-
-app:
-  cors:
-    allowed-origins: http://localhost:3000

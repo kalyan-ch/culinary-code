@@ -11,7 +11,9 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
-import org.hibernate.annotations.CreationTimestamp;
+
+import java.time.Instant;
+import java.util.UUID;
 
 @Entity
 @Table(name = "users")
@@ -22,16 +24,20 @@ import org.hibernate.annotations.CreationTimestamp;
 @Builder
 public class RecipeUser {
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
-    private String username;
-    private String password;
+    @GeneratedValue(strategy = GenerationType.UUID)
+    private UUID id;
+
     private String email;
 
-    @Column(name="created_at")
-    @CreationTimestamp
-    private String createdAt;
+    @Column(name = "display_name")
+    private String displayName;
 
-    @Column(name = "updated_at")
-    private String updatedAt;
+    @Column(name = "password_hash")
+    private String passwordHash;
+
+    @Column(name = "created_at", insertable = false, updatable = false)
+    private Instant createdAt;
+
+    @Column(name = "updated_at", insertable = false, updatable = false)
+    private Instant updatedAt;
 }

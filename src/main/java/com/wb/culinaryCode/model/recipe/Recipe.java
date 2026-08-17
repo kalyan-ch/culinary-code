@@ -1,79 +1,92 @@
 package com.wb.culinaryCode.model.recipe;
 
 import jakarta.persistence.CascadeType;
-import jakarta.persistence.CollectionTable;
 import jakarta.persistence.Column;
-import jakarta.persistence.ElementCollection;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
-import jakarta.persistence.JoinColumn;
 import jakarta.persistence.OneToMany;
+import jakarta.persistence.OrderBy;
 import jakarta.persistence.Table;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
-import org.hibernate.annotations.CreationTimestamp;
-import org.hibernate.annotations.Fetch;
-import org.hibernate.annotations.FetchMode;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.UUID;
 
 @Entity
 @Getter
 @Setter
-@Table(name ="recipe")
+@Table(name = "recipes")
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
 public class Recipe {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name="id")
-    private Long id;
-    private String name;
-    private String description;
+    @GeneratedValue(strategy = GenerationType.UUID)
+    private UUID id;
 
     @Column(name = "user_id")
-    private Long userId;
+    private UUID userId;
 
-    @Column(name = "method", length=2048)
-    private String method;
-    private String preparation;
-    private int servings;
+    private String title;
+    private String description;
 
-    @Column(name ="prep_time")
-    private int prepTime;
+    private Integer servings;
 
-    @Column(name ="cook_time")
-    private int cookTime;
+    @Column(name = "prep_time_minutes")
+    private Integer prepTimeMinutes;
 
-    @Column(name ="notes")
-    private String notes;
+    @Column(name = "cook_time_minutes")
+    private Integer cookTimeMinutes;
 
-    @Column(name ="image_url")
+    @Column(name = "total_time_minutes", insertable = false, updatable = false)
+    private Integer totalTimeMinutes;
+
+    @Enumerated(EnumType.STRING)
+    @JdbcTypeCode(SqlTypes.NAMED_ENUM)
+    private DifficultyLevel difficulty;
+
+    private String cuisine;
+
+    @Column(name = "image_url")
     private String imageUrl;
 
-    @CreationTimestamp
-    @Column(name ="created_at")
+    @Enumerated(EnumType.STRING)
+    @JdbcTypeCode(SqlTypes.NAMED_ENUM)
+    @Column(name = "source_type")
+    private RecipeSourceType sourceType;
+
+    @Column(name = "source_url")
+    private String sourceUrl;
+
+    @Column(name = "source_name")
+    private String sourceName;
+
+    @Column(name = "is_favorite")
+    private boolean favorite;
+
+    @Column(name = "created_at", insertable = false, updatable = false)
     private Instant createdAt;
 
-    @Column(name ="updated_at")
+    @Column(name = "updated_at", insertable = false, updatable = false)
     private Instant updatedAt;
 
-    @ElementCollection(fetch = FetchType.LAZY)
-    @Fetch(FetchMode.SUBSELECT)
-    @CollectionTable(name="recipe_cuisines", joinColumns = @JoinColumn(name ="recipe_id"))
-    @Column(name = "cuisine_name")
-    private List<String> cuisines;
-
-    @OneToMany(mappedBy = "recipe", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    @OneToMany(mappedBy = "recipe", cascade = CascadeType.ALL, fetch = FetchType.LAZY, orphanRemoval = true)
     private List<RecipeIngredient> recipeIngredients;
 
+    @OneToMany(mappedBy = "recipe", cascade = CascadeType.ALL, fetch = FetchType.LAZY, orphanRemoval = true)
+    @OrderBy("stepNumber ASC")
+    private List<RecipeStep> steps;
 }

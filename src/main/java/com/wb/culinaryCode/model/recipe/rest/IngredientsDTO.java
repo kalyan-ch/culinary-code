@@ -5,14 +5,17 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.math.BigDecimal;
+import java.util.UUID;
+
 @Builder
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
 public class IngredientsDTO {
-    private Long id;
+    private UUID id;
     private String name;
     private String unit;
     private String notes;
-    private Double quantity;
+    private BigDecimal quantity;
 }

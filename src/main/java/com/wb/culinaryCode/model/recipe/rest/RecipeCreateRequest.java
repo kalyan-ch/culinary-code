@@ -6,22 +6,21 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.util.List;
+import java.util.UUID;
 
 @Builder
 @AllArgsConstructor
 @NoArgsConstructor
 @Data
 public class RecipeCreateRequest {
-    private String name;
+    private String title;
     private String description;
-    private Integer cookTime;
-    private Integer prepTime;
-    private String method;
-    private String preparation;
+    private Integer cookTimeMinutes;
+    private Integer prepTimeMinutes;
     private Integer servings;
-    private Long userId;
+    private UUID userId;
     private List<IngredientsDTO> ingredients;
-    private List<String> cuisines;
-    private String notes;
+    private List<RecipeStepDTO> steps;
+    private String cuisine;
     private String imageUrl;
 }

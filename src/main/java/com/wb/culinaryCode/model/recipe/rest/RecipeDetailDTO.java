@@ -6,20 +6,21 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.util.List;
+import java.util.UUID;
 
 @Builder
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
 public class RecipeDetailDTO {
-    private Long id;
-    private String name;
+    private UUID id;
+    private String title;
     private String description;
-    private Integer cookTime;
-    private Integer prepTime;
-    private String method;
+    private Integer cookTimeMinutes;
+    private Integer prepTimeMinutes;
     private Integer servings;
-    private Long userId;
-    private List<String> cuisines;
+    private UUID userId;
+    private String cuisine;
     private List<IngredientsDTO> ingredients;
+    private List<RecipeStepDTO> steps;
 }

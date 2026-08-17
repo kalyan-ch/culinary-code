@@ -1,0 +1,13 @@
+
+spring:
+  datasource:
+    url: jdbc:postgresql://localhost:5432/culinaryCode
+    username: developer
+    password: postgresDev
+    driver: org.postgresql.Driver
+  flyway:
+    locations: classpath:db/migration,classpath:db/seed/local
+
+app:
+  cors:
+    allowed-origins: http://localhost:3000

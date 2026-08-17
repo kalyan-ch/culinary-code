@@ -14,6 +14,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
+import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/v1/recipe")
@@ -23,7 +24,7 @@ public class RecipeController {
     private final RecipeService recipeService;
 
     @GetMapping("/{recipeId}")
-    public ResponseEntity<RecipeDetailDTO> getRecipeById(@PathVariable Long recipeId) {
+    public ResponseEntity<RecipeDetailDTO> getRecipeById(@PathVariable UUID recipeId) {
         var recipeOpt = recipeService.getRecipeById(recipeId);
 
         return recipeOpt.map(ResponseEntity::ok)
@@ -37,7 +38,7 @@ public class RecipeController {
     }
 
     @GetMapping("/recipes")
-    public ResponseEntity<List<RecipeDTO>> getRecipesByIds(@RequestParam List<Long> recipeIds) {
+    public ResponseEntity<List<RecipeDTO>> getRecipesByIds(@RequestParam List<UUID> recipeIds) {
         return ResponseEntity.ok(recipeService.getRecipesByIds(recipeIds));
     }
 }
