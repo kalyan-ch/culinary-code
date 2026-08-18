@@ -9,4 +9,5 @@ public interface IngredientRepository extends JpaRepository<Ingredient, UUID> {
 
     public Ingredient findByNameContainingIgnoreCase(String name);
     public Ingredient findByName(String name);
+    public Ingredient findByNameIgnoreCase(String name);
 }
