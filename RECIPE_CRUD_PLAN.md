@@ -1,6 +1,6 @@
 # Recipe CRUD — Combined Backend + UI Plan
 
-Status: **backend done and verified** (2026-08-17). UI phase not started — resume there next.
+Status: **backend and UI both done** (2026-08-17). See notes below for what's verified vs. still unverified (no browser was available to click-test the UI this session).
 
 ## Backend implementation notes
 All 6 backend tasks below are implemented and manually verified end-to-end (create/read/list/update/delete, validation, 404s, ingredient dedup, cascade delete). Several real bugs surfaced only when actually exercising the endpoints against Postgres, not from code review alone:
@@ -64,16 +64,25 @@ All 6 backend tasks below are implemented and manually verified end-to-end (crea
 
 ---
 
-## Frontend (`culinary-code-ui`)
+## Frontend (`culinary-code-ui`) — ✅ done
 
-### Current state
+### Implementation notes
+- Used the existing route scaffolding (`recipe/[id]/page.tsx`, `search/page.tsx`) instead of new paths — both existed already as static "coming soon" stubs, not actual list/detail pages, so no `/recipes` route was created (kept the existing `/search` and `/recipe/[id]` naming).
+- `search/page.tsx` and `recipe/[id]/page.tsx`/`edit/page.tsx` are Server Components that fetch directly (no client-side loading state needed); `Sidebar`'s cuisine filter became plain `<Link>`s with query params rather than client-side checkbox state, since the backend only supports one active cuisine at a time.
+- Dropped the decorative (non-functional) title-search input on the search page — there's no title-search endpoint yet (matches the existing backlog item), and a fake search box would be a half-working affordance.
+- `CreateRecipeForm` now takes `mode`/`recipeId`/`initial` props so the same component serves both create and edit.
+- Real bug caught only by testing against the live API: the backend returns explicit JSON `null` for unset optional fields (not "field omitted"), but the detail page initially used `!== undefined` checks, which don't catch `null` — showing an empty "( min)" for steps with no timer. Fixed by switching to `!= null` (loose equality catches both).
+- **Verified**: `tsc --noEmit` clean, `next build` clean (no lint warnings), and the search/detail/edit pages were checked against the live backend + seed data via `curl` (list renders 3 seeded recipes, cuisine filter narrows correctly, detail page renders ingredients/steps with the null-handling fix confirmed, edit page prefills form fields, 404 page renders for a missing id with correct HTTP 404 status).
+- **Not verified** — no browser was available this session: actual click-through of the create/edit form submission, the delete confirmation dialog, and post-submit redirects. These rely on client-side JS (React state, `fetch`, `router.push`) that `curl` against SSR output can't exercise. Worth a manual pass in a browser before treating this as fully done.
+
+### Original state (before this phase)
 - No API client/fetch layer exists anywhere in `src/` — zero `fetch`/`axios` calls today.
 - `CreateRecipeForm` collects `recipeName`, `preparation`, `method`, `notes`, `cuisines` (array via `MultiSelect`) — none of these match the backend's `title`, `steps[]`, single `cuisine`.
 - `IngredientTable`'s unit `<select>` has no `name` attribute, so it wouldn't even POST today.
 - No recipe list, detail, or edit pages exist — only the create form.
 - `Sidebar` (cuisine filter checkboxes) is built but unused/unrendered.
 
-### Tasks
+### Tasks (all ✅ done)
 1. **API client layer** (new)
    - `src/lib/api/client.ts` — thin fetch wrapper reading base URL from `NEXT_PUBLIC_API_URL` (defaults to `http://localhost:8090`), handling JSON parsing and non-2xx errors.
    - `src/lib/api/types.ts` — TS interfaces mirroring the backend DTOs: `RecipeDTO`, `RecipeDetailDTO`, `RecipeCreateRequest`/`RecipeUpdateRequest`, `IngredientsDTO`, `RecipeStepDTO` (`id: string` for UUIDs, `cuisine: string`, `title: string`, `steps: RecipeStepDTO[]`).
@@ -106,7 +115,7 @@ All 6 backend tasks below are implemented and manually verified end-to-end (crea
 ## Suggested implementation order
 1. ✅ Backend: fix Create (currently broken) — tasks 1, 5, 6.
 2. ✅ Backend: list/update/delete — tasks 2, 3, 4.
-3. ⬅️ **Resume here** — UI: API client layer.
-4. UI: fix `CreateRecipeForm` + wire real submit.
-5. UI: list page, detail page.
-6. UI: edit page, delete flow.
+3. ✅ UI: API client layer.
+4. ✅ UI: fix `CreateRecipeForm` + wire real submit.
+5. ✅ UI: list page, detail page.
+6. ✅ UI: edit page, delete flow. **Remaining**: manual browser click-through of create/edit/delete (no browser tool was available this session).
