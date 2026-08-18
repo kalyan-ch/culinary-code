@@ -23,4 +23,5 @@ public class RecipeDetailDTO {
     private String cuisine;
     private List<IngredientsDTO> ingredients;
     private List<RecipeStepDTO> steps;
+    private List<String> tags;
 }

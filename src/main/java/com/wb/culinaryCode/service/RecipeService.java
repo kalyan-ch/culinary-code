@@ -2,12 +2,15 @@ package com.wb.culinaryCode.service;
 
 import com.wb.culinaryCode.dao.IngredientRepository;
 import com.wb.culinaryCode.dao.RecipeRepository;
+import com.wb.culinaryCode.dao.TagRepository;
+import com.wb.culinaryCode.dao.spec.RecipeSpecifications;
 import com.wb.culinaryCode.exception.RecipeNotFoundException;
 import com.wb.culinaryCode.model.recipe.Ingredient;
 import com.wb.culinaryCode.model.recipe.Recipe;
 import com.wb.culinaryCode.model.recipe.RecipeIngredient;
 import com.wb.culinaryCode.model.recipe.RecipeSourceType;
 import com.wb.culinaryCode.model.recipe.RecipeStep;
+import com.wb.culinaryCode.model.recipe.Tag;
 import com.wb.culinaryCode.model.recipe.rest.IngredientsDTO;
 import com.wb.culinaryCode.model.recipe.rest.RecipeCreateRequest;
 import com.wb.culinaryCode.model.recipe.rest.RecipeDTO;
@@ -18,14 +21,18 @@ import lombok.RequiredArgsConstructor;
 import org.modelmapper.ModelMapper;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 
 @Service
@@ -34,30 +41,24 @@ public class RecipeService {
 
     private final RecipeRepository recipeRepository;
     private final IngredientRepository ingredientRepository;
+    private final TagRepository tagRepository;
     private final ModelMapper modelMapper;
 
     public Optional<RecipeDetailDTO> getRecipeById(UUID recipeId) {
-        var recipe = recipeRepository.findById(recipeId);
-        return recipe.map(value -> modelMapper.map(value, RecipeDetailDTO.class));
+        return recipeRepository.findById(recipeId).map(this::toDetailDto);
     }
 
     public List<RecipeDTO> getRecipesByIds(List<UUID> recipeIds) {
-        var recipes = recipeRepository.findAllById(recipeIds);
-        return List.of(modelMapper.map(recipes, RecipeDTO[].class));
+        return recipeRepository.findAllById(recipeIds).stream().map(this::toDto).toList();
     }
 
-    public Page<RecipeDTO> listRecipes(UUID userId, String cuisine, Pageable pageable) {
-        Page<Recipe> recipes;
-        if (userId != null && cuisine != null) {
-            recipes = recipeRepository.findByUserIdAndCuisine(userId, cuisine, pageable);
-        } else if (userId != null) {
-            recipes = recipeRepository.findByUserId(userId, pageable);
-        } else if (cuisine != null) {
-            recipes = recipeRepository.findByCuisine(cuisine, pageable);
-        } else {
-            recipes = recipeRepository.findAll(pageable);
-        }
-        return recipes.map(recipe -> modelMapper.map(recipe, RecipeDTO.class));
+    public Page<RecipeDTO> listRecipes(UUID userId, String cuisine, String tag, Pageable pageable) {
+        var spec = Specification.allOf(
+                RecipeSpecifications.hasUserId(userId),
+                RecipeSpecifications.hasCuisine(cuisine),
+                RecipeSpecifications.hasTag(tag)
+        );
+        return recipeRepository.findAll(spec, pageable).map(this::toDto);
     }
 
     @Transactional
@@ -80,9 +81,10 @@ public class RecipeService {
 
         recipe.setRecipeIngredients(buildRecipeIngredients(request.getIngredients(), recipe));
         recipe.setSteps(buildRecipeSteps(request.getSteps(), recipe));
+        recipe.setTags(resolveTags(request.getTags()));
 
         var saved = recipeRepository.save(recipe);
-        return modelMapper.map(saved, RecipeDetailDTO.class);
+        return toDetailDto(saved);
     }
 
     @Transactional
@@ -104,19 +106,25 @@ public class RecipeService {
         if (recipe.getSteps() == null) {
             recipe.setSteps(new ArrayList<>());
         }
+        if (recipe.getTags() == null) {
+            recipe.setTags(new HashSet<>());
+        }
 
-        // recipe_steps has a UNIQUE(recipe_id, step_number) constraint, so clearing and
-        // re-adding in one flush can try to insert the new step_number=1 before the old
-        // row's delete has landed. Flushing the removal first avoids the collision.
+        // recipe_steps has a UNIQUE(recipe_id, step_number) constraint and recipe_tags a
+        // composite (recipe_id, tag_id) primary key, so clearing and re-adding in one flush
+        // can try to insert a row before the old one's delete has landed. Flushing the
+        // removal first avoids the collision.
         recipe.getRecipeIngredients().clear();
         recipe.getSteps().clear();
+        recipe.getTags().clear();
         recipeRepository.saveAndFlush(recipe);
 
         recipe.getRecipeIngredients().addAll(buildRecipeIngredients(request.getIngredients(), recipe));
         recipe.getSteps().addAll(buildRecipeSteps(request.getSteps(), recipe));
+        recipe.getTags().addAll(resolveTags(request.getTags()));
 
         var saved = recipeRepository.save(recipe);
-        return modelMapper.map(saved, RecipeDetailDTO.class);
+        return toDetailDto(saved);
     }
 
     @Transactional
@@ -177,5 +185,53 @@ public class RecipeService {
             return existing;
         }
         return ingredientRepository.save(Ingredient.builder().name(name).build());
+    }
+
+    private Set<Tag> resolveTags(List<String> tagNames) {
+        if (tagNames == null) {
+            return new HashSet<>();
+        }
+
+        // Same per-call resolution cache as buildRecipeIngredients, for the same reason:
+        // avoids two lookups for the same (case-insensitive) tag name racing each other.
+        Map<String, Tag> resolvedByName = new HashMap<>();
+        Set<Tag> result = new LinkedHashSet<>();
+        for (String name : tagNames) {
+            if (name == null || name.isBlank()) {
+                continue;
+            }
+            var tag = resolvedByName.computeIfAbsent(name.toLowerCase(), key -> resolveTag(name));
+            result.add(tag);
+        }
+        return result;
+    }
+
+    private Tag resolveTag(String name) {
+        var existing = tagRepository.findByNameIgnoreCase(name);
+        if (existing != null) {
+            return existing;
+        }
+        return tagRepository.save(Tag.builder().name(name).build());
+    }
+
+    // ModelMapper can't reflectively convert Recipe.tags (Set<Tag>) into a List<String> of
+    // names, so tags are mapped by hand after the rest of the DTO is populated normally.
+    private RecipeDetailDTO toDetailDto(Recipe recipe) {
+        var dto = modelMapper.map(recipe, RecipeDetailDTO.class);
+        dto.setTags(tagNames(recipe));
+        return dto;
+    }
+
+    private RecipeDTO toDto(Recipe recipe) {
+        var dto = modelMapper.map(recipe, RecipeDTO.class);
+        dto.setTags(tagNames(recipe));
+        return dto;
+    }
+
+    private List<String> tagNames(Recipe recipe) {
+        if (recipe.getTags() == null) {
+            return List.of();
+        }
+        return recipe.getTags().stream().map(Tag::getName).sorted(String.CASE_INSENSITIVE_ORDER).toList();
     }
 }

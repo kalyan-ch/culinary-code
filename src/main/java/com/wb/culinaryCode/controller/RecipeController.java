@@ -43,8 +43,9 @@ public class RecipeController {
     public ResponseEntity<Page<RecipeDTO>> listRecipes(
             @RequestParam(required = false) UUID userId,
             @RequestParam(required = false) String cuisine,
+            @RequestParam(required = false) String tag,
             Pageable pageable) {
-        return ResponseEntity.ok(recipeService.listRecipes(userId, cuisine, pageable));
+        return ResponseEntity.ok(recipeService.listRecipes(userId, cuisine, tag, pageable));
     }
 
     @PostMapping("/create")

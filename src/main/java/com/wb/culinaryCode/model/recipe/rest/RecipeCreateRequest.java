@@ -39,6 +39,8 @@ public class RecipeCreateRequest {
 
     private List<@Valid RecipeStepDTO> steps;
 
+    private List<String> tags;
+
     private String cuisine;
     private String imageUrl;
 }
