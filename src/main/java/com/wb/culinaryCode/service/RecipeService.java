@@ -22,8 +22,10 @@ import org.modelmapper.ModelMapper;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -44,31 +46,37 @@ public class RecipeService {
     private final TagRepository tagRepository;
     private final ModelMapper modelMapper;
 
-    public Optional<RecipeDetailDTO> getRecipeById(UUID recipeId) {
-        return recipeRepository.findById(recipeId).map(this::toDetailDto);
+    public Optional<RecipeDetailDTO> getRecipeById(UUID recipeId, UUID viewerId) {
+        return recipeRepository.findById(recipeId)
+                .filter(recipe -> isVisibleTo(recipe, viewerId))
+                .map(recipe -> toDetailDto(recipe, viewerId));
     }
 
-    public List<RecipeDTO> getRecipesByIds(List<UUID> recipeIds) {
-        return recipeRepository.findAllById(recipeIds).stream().map(this::toDto).toList();
+    public List<RecipeDTO> getRecipesByIds(List<UUID> recipeIds, UUID viewerId) {
+        return recipeRepository.findAllById(recipeIds).stream()
+                .filter(recipe -> isVisibleTo(recipe, viewerId))
+                .map(recipe -> toDto(recipe, viewerId))
+                .toList();
     }
 
-    public Page<RecipeDTO> listRecipes(UUID userId, String cuisine, String tag, Pageable pageable) {
+    public Page<RecipeDTO> listRecipes(UUID viewerId, String cuisine, String tag, boolean mineOnly,
+                                       Pageable pageable) {
         var spec = Specification.allOf(
-                RecipeSpecifications.hasUserId(userId),
+                mineOnly ? RecipeSpecifications.ownedBy(viewerId) : RecipeSpecifications.visibleTo(viewerId),
                 RecipeSpecifications.hasCuisine(cuisine),
                 RecipeSpecifications.hasTag(tag)
         );
-        return recipeRepository.findAll(spec, pageable).map(this::toDto);
+        return recipeRepository.findAll(spec, pageable).map(recipe -> toDto(recipe, viewerId));
     }
 
     @Transactional
-    public RecipeDetailDTO createRecipe(RecipeCreateRequest request) {
+    public RecipeDetailDTO createRecipe(RecipeCreateRequest request, UUID ownerId) {
         // Built explicitly rather than via modelMapper.map(request, Recipe.class):
         // ModelMapper's default matching treats "id" as a token-suffix match of
         // "userId", so it was mapping request.userId into recipe.id as well as
         // recipe.userId, turning the insert into a failed update-by-id.
         var recipe = Recipe.builder()
-                .userId(request.getUserId())
+                .userId(ownerId)
                 .title(request.getTitle())
                 .description(request.getDescription())
                 .servings(request.getServings())
@@ -76,21 +84,20 @@ public class RecipeService {
                 .cookTimeMinutes(request.getCookTimeMinutes())
                 .cuisine(request.getCuisine())
                 .imageUrl(request.getImageUrl())
+                .published(request.isPublished())
                 .sourceType(RecipeSourceType.manual)
                 .build();
 
-        recipe.setRecipeIngredients(buildRecipeIngredients(request.getIngredients(), recipe));
-        recipe.setSteps(buildRecipeSteps(request.getSteps(), recipe));
-        recipe.setTags(resolveTags(request.getTags()));
+        resetChildren(recipe);
+        replaceChildren(recipe, request.getIngredients(), request.getSteps(), request.getTags(), ownerId);
 
         var saved = recipeRepository.save(recipe);
-        return toDetailDto(saved);
+        return toDetailDto(saved, ownerId);
     }
 
     @Transactional
-    public RecipeDetailDTO updateRecipe(UUID recipeId, RecipeUpdateRequest request) {
-        var recipe = recipeRepository.findById(recipeId)
-                .orElseThrow(() -> new RecipeNotFoundException(recipeId));
+    public RecipeDetailDTO updateRecipe(UUID recipeId, RecipeUpdateRequest request, UUID ownerId) {
+        var recipe = requireOwned(recipeId, ownerId);
 
         recipe.setTitle(request.getTitle());
         recipe.setDescription(request.getDescription());
@@ -99,43 +106,71 @@ public class RecipeService {
         recipe.setCookTimeMinutes(request.getCookTimeMinutes());
         recipe.setCuisine(request.getCuisine());
         recipe.setImageUrl(request.getImageUrl());
-
-        if (recipe.getRecipeIngredients() == null) {
-            recipe.setRecipeIngredients(new ArrayList<>());
-        }
-        if (recipe.getSteps() == null) {
-            recipe.setSteps(new ArrayList<>());
-        }
-        if (recipe.getTags() == null) {
-            recipe.setTags(new HashSet<>());
-        }
+        recipe.setPublished(request.isPublished());
 
         // recipe_steps has a UNIQUE(recipe_id, step_number) constraint and recipe_tags a
         // composite (recipe_id, tag_id) primary key, so clearing and re-adding in one flush
         // can try to insert a row before the old one's delete has landed. Flushing the
         // removal first avoids the collision.
-        recipe.getRecipeIngredients().clear();
-        recipe.getSteps().clear();
-        recipe.getTags().clear();
+        resetChildren(recipe);
         recipeRepository.saveAndFlush(recipe);
-
-        recipe.getRecipeIngredients().addAll(buildRecipeIngredients(request.getIngredients(), recipe));
-        recipe.getSteps().addAll(buildRecipeSteps(request.getSteps(), recipe));
-        recipe.getTags().addAll(resolveTags(request.getTags()));
+        replaceChildren(recipe, request.getIngredients(), request.getSteps(), request.getTags(), ownerId);
 
         var saved = recipeRepository.save(recipe);
-        return toDetailDto(saved);
+        return toDetailDto(saved, ownerId);
     }
 
     @Transactional
-    public void deleteRecipe(UUID recipeId) {
-        if (!recipeRepository.existsById(recipeId)) {
-            throw new RecipeNotFoundException(recipeId);
-        }
-        recipeRepository.deleteById(recipeId);
+    public void deleteRecipe(UUID recipeId, UUID ownerId) {
+        recipeRepository.delete(requireOwned(recipeId, ownerId));
     }
 
-    private List<RecipeIngredient> buildRecipeIngredients(List<IngredientsDTO> ingredientDTOs, Recipe recipe) {
+    /**
+     * A recipe you cannot see is reported as missing rather than forbidden — answering 403 for
+     * someone else's private recipe would confirm that it exists. A published recipe you don't
+     * own is a 403, because you can already see it and hiding it would only be confusing.
+     */
+    private Recipe requireOwned(UUID recipeId, UUID ownerId) {
+        var recipe = recipeRepository.findById(recipeId)
+                .filter(candidate -> isVisibleTo(candidate, ownerId))
+                .orElseThrow(() -> new RecipeNotFoundException(recipeId));
+
+        if (!recipe.getUserId().equals(ownerId)) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "This recipe belongs to someone else");
+        }
+        return recipe;
+    }
+
+    private boolean isVisibleTo(Recipe recipe, UUID viewerId) {
+        return recipe.isPublished() || recipe.getUserId().equals(viewerId);
+    }
+
+    /**
+     * Empties the child collections in place. The existing instances have to be reused rather
+     * than replaced — swapping the collection on a managed entity trips Hibernate's
+     * "collection with cascade=all-delete-orphan was no longer referenced".
+     */
+    private void resetChildren(Recipe recipe) {
+        if (recipe.getRecipeIngredients() == null) {
+            recipe.setRecipeIngredients(new ArrayList<>());
+            recipe.setSteps(new ArrayList<>());
+            recipe.setTags(new HashSet<>());
+            return;
+        }
+        recipe.getRecipeIngredients().clear();
+        recipe.getSteps().clear();
+        recipe.getTags().clear();
+    }
+
+    private void replaceChildren(Recipe recipe, List<IngredientsDTO> ingredients,
+                                 List<RecipeStepDTO> steps, List<String> tags, UUID ownerId) {
+        recipe.getRecipeIngredients().addAll(buildRecipeIngredients(ingredients, recipe, ownerId));
+        recipe.getSteps().addAll(buildRecipeSteps(steps, recipe));
+        recipe.getTags().addAll(resolveTags(tags, ownerId));
+    }
+
+    private List<RecipeIngredient> buildRecipeIngredients(List<IngredientsDTO> ingredientDTOs, Recipe recipe,
+                                                          UUID ownerId) {
         if (ingredientDTOs == null) {
             return new ArrayList<>();
         }
@@ -148,7 +183,7 @@ public class RecipeService {
         for (int i = 0; i < ingredientDTOs.size(); i++) {
             var dto = ingredientDTOs.get(i);
             var ingredient = resolvedByName.computeIfAbsent(
-                    dto.getName().toLowerCase(), key -> resolveIngredient(dto.getName()));
+                    dto.getName().toLowerCase(), key -> resolveIngredient(dto.getName(), ownerId));
             result.add(RecipeIngredient.builder()
                     .recipe(recipe)
                     .ingredient(ingredient)
@@ -179,15 +214,19 @@ public class RecipeService {
         return result;
     }
 
-    private Ingredient resolveIngredient(String name) {
-        var existing = ingredientRepository.findByNameIgnoreCase(name);
-        if (existing != null) {
-            return existing;
-        }
-        return ingredientRepository.save(Ingredient.builder().name(name).build());
+    /**
+     * Curated ingredients win, so everyone's "garlic" is the same row and keeps its aisle
+     * category. Anything unrecognised is created against the user — an invented name never
+     * pollutes the shared catalogue.
+     */
+    private Ingredient resolveIngredient(String name, UUID ownerId) {
+        return ingredientRepository.findCommonByName(name)
+                .or(() -> ingredientRepository.findOwnedByName(ownerId, name))
+                .orElseGet(() -> ingredientRepository.save(
+                        Ingredient.builder().name(name).userId(ownerId).build()));
     }
 
-    private Set<Tag> resolveTags(List<String> tagNames) {
+    private Set<Tag> resolveTags(List<String> tagNames, UUID ownerId) {
         if (tagNames == null) {
             return new HashSet<>();
         }
@@ -200,31 +239,34 @@ public class RecipeService {
             if (name == null || name.isBlank()) {
                 continue;
             }
-            var tag = resolvedByName.computeIfAbsent(name.toLowerCase(), key -> resolveTag(name));
-            result.add(tag);
+            result.add(resolvedByName.computeIfAbsent(name.toLowerCase(), key -> resolveTag(name, ownerId)));
         }
         return result;
     }
 
-    private Tag resolveTag(String name) {
-        var existing = tagRepository.findByNameIgnoreCase(name);
-        if (existing != null) {
-            return existing;
-        }
-        return tagRepository.save(Tag.builder().name(name).build());
+    /**
+     * Curated tags win, so everyone tagging "vegetarian" shares one row. Anything else becomes
+     * a tag owned by the user — nothing here can ever write into the curated set.
+     */
+    private Tag resolveTag(String name, UUID ownerId) {
+        return tagRepository.findCommonByName(name)
+                .or(() -> tagRepository.findOwnedByName(ownerId, name))
+                .orElseGet(() -> tagRepository.save(Tag.builder().name(name).userId(ownerId).build()));
     }
 
     // ModelMapper can't reflectively convert Recipe.tags (Set<Tag>) into a List<String> of
     // names, so tags are mapped by hand after the rest of the DTO is populated normally.
-    private RecipeDetailDTO toDetailDto(Recipe recipe) {
+    private RecipeDetailDTO toDetailDto(Recipe recipe, UUID viewerId) {
         var dto = modelMapper.map(recipe, RecipeDetailDTO.class);
         dto.setTags(tagNames(recipe));
+        dto.setOwned(recipe.getUserId().equals(viewerId));
         return dto;
     }
 
-    private RecipeDTO toDto(Recipe recipe) {
+    private RecipeDTO toDto(Recipe recipe, UUID viewerId) {
         var dto = modelMapper.map(recipe, RecipeDTO.class);
         dto.setTags(tagNames(recipe));
+        dto.setOwned(recipe.getUserId().equals(viewerId));
         return dto;
     }
 

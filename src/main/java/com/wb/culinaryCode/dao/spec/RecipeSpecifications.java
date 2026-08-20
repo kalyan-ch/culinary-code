@@ -12,8 +12,15 @@ public class RecipeSpecifications {
     private RecipeSpecifications() {
     }
 
-    public static Specification<Recipe> hasUserId(UUID userId) {
-        return (root, query, cb) -> userId == null ? null : cb.equal(root.get("userId"), userId);
+    /** Everything the signed-in user may see: their own recipes plus every published one. */
+    public static Specification<Recipe> visibleTo(UUID userId) {
+        return (root, query, cb) -> cb.or(
+                cb.equal(root.get("userId"), userId),
+                cb.isTrue(root.get("published")));
+    }
+
+    public static Specification<Recipe> ownedBy(UUID userId) {
+        return (root, query, cb) -> cb.equal(root.get("userId"), userId);
     }
 
     public static Specification<Recipe> hasCuisine(String cuisine) {

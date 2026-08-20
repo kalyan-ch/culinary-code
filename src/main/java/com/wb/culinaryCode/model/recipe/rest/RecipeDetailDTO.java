@@ -19,9 +19,10 @@ public class RecipeDetailDTO {
     private Integer cookTimeMinutes;
     private Integer prepTimeMinutes;
     private Integer servings;
-    private UUID userId;
     private String cuisine;
     private List<IngredientsDTO> ingredients;
     private List<RecipeStepDTO> steps;
     private List<String> tags;
+    private boolean published;
+    private boolean owned;
 }

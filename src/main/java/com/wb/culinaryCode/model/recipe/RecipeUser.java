@@ -35,6 +35,13 @@ public class RecipeUser {
     @Column(name = "password_hash")
     private String passwordHash;
 
+    /** "google", or null for a password-only account. */
+    private String provider;
+
+    /** The provider's stable subject id — matched on instead of email, which can change. */
+    @Column(name = "provider_id")
+    private String providerId;
+
     @Column(name = "created_at", insertable = false, updatable = false)
     private Instant createdAt;
 

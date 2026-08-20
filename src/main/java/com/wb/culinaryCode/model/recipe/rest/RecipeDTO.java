@@ -18,4 +18,6 @@ public class RecipeDTO {
     private String description;
     private String cuisine;
     private List<String> tags;
+    private boolean published;
+    private boolean owned;
 }

@@ -1,0 +1,26 @@
+
+# In-memory database for tests, so the suite never touches the local Postgres.
+#
+# Flyway is off here on purpose: the migrations are Postgres-specific (extensions,
+# CREATE TYPE ... AS ENUM, a plpgsql trigger, a gin_trgm_ops index, a STORED generated
+# column) and H2 cannot run them. The schema is generated from the entities instead.
+#
+# The trade-off: nothing in this profile exercises the migrations, so a mistake in a
+# migration file will not be caught here. Verifying those needs a real Postgres
+# (Testcontainers) rather than H2.
+spring:
+  datasource:
+    url: jdbc:h2:mem:culinary;MODE=PostgreSQL;DB_CLOSE_DELAY=-1
+    username: sa
+    password: ""
+    driver-class-name: org.h2.Driver
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+  flyway:
+    enabled: false
+
+app:
+  frontend-url: http://localhost:3000
+  cors:
+    allowed-origins: http://localhost:3000
