@@ -141,8 +141,13 @@ public class RecipeService {
         return recipe;
     }
 
+    /** A null viewer is anonymous: published recipes only. */
     private boolean isVisibleTo(Recipe recipe, UUID viewerId) {
-        return recipe.isPublished() || recipe.getUserId().equals(viewerId);
+        return recipe.isPublished() || (viewerId != null && recipe.getUserId().equals(viewerId));
+    }
+
+    private boolean isOwnedBy(Recipe recipe, UUID viewerId) {
+        return viewerId != null && recipe.getUserId().equals(viewerId);
     }
 
     /**
@@ -259,14 +264,14 @@ public class RecipeService {
     private RecipeDetailDTO toDetailDto(Recipe recipe, UUID viewerId) {
         var dto = modelMapper.map(recipe, RecipeDetailDTO.class);
         dto.setTags(tagNames(recipe));
-        dto.setOwned(recipe.getUserId().equals(viewerId));
+        dto.setOwned(isOwnedBy(recipe, viewerId));
         return dto;
     }
 
     private RecipeDTO toDto(Recipe recipe, UUID viewerId) {
         var dto = modelMapper.map(recipe, RecipeDTO.class);
         dto.setTags(tagNames(recipe));
-        dto.setOwned(recipe.getUserId().equals(viewerId));
+        dto.setOwned(isOwnedBy(recipe, viewerId));
         return dto;
     }
 

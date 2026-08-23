@@ -7,16 +7,9 @@ spring:
       client:
         registration:
           google:
-            # Placeholders keep the app bootable without Google credentials; the sign-in
-            # link simply fails if clicked. Set the real values via the environment.
             client-id: ${GOOGLE_CLIENT_ID:not-configured}
             client-secret: ${GOOGLE_CLIENT_SECRET:not-configured}
             scope: openid, email, profile
-            # Must resolve to the FRONTEND origin, not this service's: the callback is what
-            # sets the session cookie, and a cookie set on the backend origin is third-party
-            # to the app and dropped by Safari. {baseUrl} derives it from the proxy's
-            # forwarded headers, which works but is fragile — set OAUTH_REDIRECT_URI
-            # explicitly in any deployed environment and register the same value with Google.
             redirect-uri: ${OAUTH_REDIRECT_URI:{baseUrl}/api/login/oauth2/code/{registrationId}}
   profiles:
     active: local

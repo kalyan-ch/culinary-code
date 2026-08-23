@@ -12,11 +12,14 @@ public class RecipeSpecifications {
     private RecipeSpecifications() {
     }
 
-    /** Everything the signed-in user may see: their own recipes plus every published one. */
+    /**
+     * Everything the viewer may see: every published recipe, plus their own if they are signed
+     * in. A null viewer is an anonymous visitor, who sees published recipes only.
+     */
     public static Specification<Recipe> visibleTo(UUID userId) {
-        return (root, query, cb) -> cb.or(
-                cb.equal(root.get("userId"), userId),
-                cb.isTrue(root.get("published")));
+        return (root, query, cb) -> userId == null
+                ? cb.isTrue(root.get("published"))
+                : cb.or(cb.equal(root.get("userId"), userId), cb.isTrue(root.get("published")));
     }
 
     public static Specification<Recipe> ownedBy(UUID userId) {

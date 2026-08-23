@@ -58,10 +58,20 @@ public class SecurityConfig {
                         .requestMatchers("/api/v1/auth/register", "/api/v1/auth/login").permitAll()
                         .requestMatchers("/api/oauth2/**", "/api/login/oauth2/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/actuator/health").permitAll()
+                        // Browsing is open so a signed-out visitor can find published recipes.
+                        // The service still decides what each viewer may see: with no session
+                        // that is published recipes only. Creating and editing stay closed.
+                        .requestMatchers(HttpMethod.GET, "/api/v1/recipe", "/api/v1/recipe/**").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/v1/tags").permitAll()
                         .anyRequest().authenticated())
                 // Without this the default entry point answers an unauthenticated API call with
                 // a redirect to a login page that doesn't exist, which the frontend sees as an
                 // opaque 200 of HTML rather than a 401.
+                // Spring saves the attempted request into a new session so it can replay it
+                // after a form login, which handed a JSESSIONID to visitors who had never
+                // signed in — enough to fool any "is the cookie there?" check. This API
+                // answers 401 instead of redirecting, so the saved request is never used.
+                .requestCache(cache -> cache.disable())
                 .exceptionHandling(ex -> ex.authenticationEntryPoint((request, response, failure) -> {
                     response.setStatus(401);
                     response.setContentType(MediaType.APPLICATION_JSON_VALUE);

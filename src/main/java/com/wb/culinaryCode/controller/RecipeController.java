@@ -10,6 +10,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -21,14 +22,17 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.net.URI;
 import java.util.List;
 import java.util.UUID;
 
 /**
- * Every endpoint here requires a session — see {@code SecurityConfig}. The owner of a recipe
- * is always taken from that session, never from the request body.
+ * Reads are open to anonymous visitors and writes are not — see {@code SecurityConfig}. That
+ * means {@code user} is null on the read paths when nobody is signed in, and the service
+ * narrows what a null viewer may see to published recipes. The owner of a recipe is always
+ * taken from the session, never from the request body.
  */
 @RestController
 @RequestMapping("/api/v1/recipe")
@@ -40,7 +44,7 @@ public class RecipeController {
     @GetMapping("/{recipeId}")
     public ResponseEntity<RecipeDetailDTO> getRecipeById(@PathVariable UUID recipeId,
                                                          @AuthenticationPrincipal AuthUser user) {
-        return recipeService.getRecipeById(recipeId, user.id())
+        return recipeService.getRecipeById(recipeId, viewerId(user))
                 .map(ResponseEntity::ok)
                 .orElseGet(() -> ResponseEntity.notFound().build());
     }
@@ -53,7 +57,10 @@ public class RecipeController {
             @RequestParam(defaultValue = "false") boolean mine,
             Pageable pageable,
             @AuthenticationPrincipal AuthUser user) {
-        return ResponseEntity.ok(recipeService.listRecipes(user.id(), cuisine, tag, mine, pageable));
+        if (mine && user == null) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Sign in to see your own recipes");
+        }
+        return ResponseEntity.ok(recipeService.listRecipes(viewerId(user), cuisine, tag, mine, pageable));
     }
 
     @PostMapping("/create")
@@ -80,6 +87,11 @@ public class RecipeController {
     @GetMapping("/recipes")
     public ResponseEntity<List<RecipeDTO>> getRecipesByIds(@RequestParam List<UUID> recipeIds,
                                                            @AuthenticationPrincipal AuthUser user) {
-        return ResponseEntity.ok(recipeService.getRecipesByIds(recipeIds, user.id()));
+        return ResponseEntity.ok(recipeService.getRecipesByIds(recipeIds, viewerId(user)));
+    }
+
+    /** Null for an anonymous visitor, which the service reads as "published recipes only". */
+    private static UUID viewerId(AuthUser user) {
+        return user == null ? null : user.id();
     }
 }

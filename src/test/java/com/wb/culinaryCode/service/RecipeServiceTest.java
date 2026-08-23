@@ -13,6 +13,7 @@ import com.wb.culinaryCode.model.recipe.RecipeStep;
 import com.wb.culinaryCode.model.recipe.Tag;
 import com.wb.culinaryCode.model.recipe.rest.IngredientsDTO;
 import com.wb.culinaryCode.model.recipe.rest.RecipeCreateRequest;
+import com.wb.culinaryCode.model.recipe.rest.RecipeDTO;
 import com.wb.culinaryCode.model.recipe.rest.RecipeStepDTO;
 import com.wb.culinaryCode.model.recipe.rest.RecipeUpdateRequest;
 import org.junit.jupiter.api.BeforeEach;
@@ -677,6 +678,48 @@ class RecipeServiceTest {
                     .isInstanceOf(RecipeNotFoundException.class);
 
             verify(recipeRepository, never()).delete(any(Recipe.class));
+        }
+    }
+
+    @Nested
+    @DisplayName("anonymous viewers")
+    class AnonymousViewers {
+
+        @Test
+        @DisplayName("a published recipe is readable with no session, and is not owned")
+        void publishedRecipeIsReadable() {
+            var recipe = Recipe.builder().id(RECIPE_ID).userId(OTHER_USER_ID)
+                    .title("Jollof Rice").published(true).build();
+            when(recipeRepository.findById(RECIPE_ID)).thenReturn(java.util.Optional.of(recipe));
+
+            var result = recipeService.getRecipeById(RECIPE_ID, null).orElseThrow();
+
+            assertThat(result.getTitle()).isEqualTo("Jollof Rice");
+            assertThat(result.isOwned()).isFalse();
+        }
+
+        @Test
+        @DisplayName("an unpublished recipe is invisible with no session")
+        void unpublishedRecipeIsHidden() {
+            var recipe = Recipe.builder().id(RECIPE_ID).userId(OTHER_USER_ID)
+                    .title("Private").published(false).build();
+            when(recipeRepository.findById(RECIPE_ID)).thenReturn(java.util.Optional.of(recipe));
+
+            assertThat(recipeService.getRecipeById(RECIPE_ID, null)).isEmpty();
+        }
+
+        @Test
+        @DisplayName("a batch lookup drops the recipes an anonymous viewer may not see")
+        void batchLookupFiltersUnpublished() {
+            var published = Recipe.builder().id(RECIPE_ID).userId(OTHER_USER_ID)
+                    .title("Public").published(true).build();
+            var privateOne = Recipe.builder().id(UUID.randomUUID()).userId(OTHER_USER_ID)
+                    .title("Private").published(false).build();
+            when(recipeRepository.findAllById(any())).thenReturn(List.of(published, privateOne));
+
+            var result = recipeService.getRecipesByIds(List.of(RECIPE_ID), null);
+
+            assertThat(result).extracting(RecipeDTO::getTitle).containsExactly("Public");
         }
     }
 

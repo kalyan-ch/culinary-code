@@ -19,8 +19,9 @@ public class TagController {
 
     private final TagService tagService;
 
+    /** Anonymous callers get the curated tags only. */
     @GetMapping
     public ResponseEntity<List<TagDTO>> listTags(@AuthenticationPrincipal AuthUser user) {
-        return ResponseEntity.ok(tagService.listTags(user.id()));
+        return ResponseEntity.ok(tagService.listTags(user == null ? null : user.id()));
     }
 }
