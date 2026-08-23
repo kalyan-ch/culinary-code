@@ -4,6 +4,7 @@ import com.wb.culinaryCode.dao.RecipeUserRepository;
 import com.wb.culinaryCode.security.AuthUser;
 import com.wb.culinaryCode.security.OAuthSuccessHandler;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -18,6 +19,7 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 
+@Slf4j
 @Configuration
 @RequiredArgsConstructor
 public class SecurityConfig {
@@ -83,8 +85,13 @@ public class SecurityConfig {
                         .authorizationEndpoint(a -> a.baseUri("/api/oauth2/authorization"))
                         .redirectionEndpoint(r -> r.baseUri("/api/login/oauth2/code/*"))
                         .successHandler(oauthSuccessHandler)
-                        .failureHandler((request, response, exception) ->
-                                response.sendRedirect(frontendUrl + "/login?error=oauth")))
+                        .failureHandler((request, response, exception) -> {
+                            // Spring only reports these at DEBUG, and the redirect below hides
+                            // them from the browser, so without this a failed sign-in leaves
+                            // no trace anywhere.
+                            log.warn("Google sign-in failed: {}", exception.getMessage(), exception);
+                            response.sendRedirect(frontendUrl + "/login?error=oauth");
+                        }))
                 .logout(logout -> logout
                         .logoutUrl("/api/v1/auth/logout")
                         .logoutSuccessHandler((request, response, authentication) -> response.setStatus(204))
