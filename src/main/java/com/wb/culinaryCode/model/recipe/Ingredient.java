@@ -35,6 +35,10 @@ public class Ingredient {
     @Column(name = "default_unit")
     private String defaultUnit;
 
+    /** {@code null} marks a curated ingredient shared by everyone; otherwise its creator. */
+    @Column(name = "user_id")
+    private UUID userId;
+
     @Column(name = "created_at", insertable = false, updatable = false)
     private Instant createdAt;
 }

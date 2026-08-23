@@ -81,6 +81,9 @@ public class Recipe {
     @Column(name = "is_favorite")
     private boolean favorite;
 
+    @Column(name = "is_public")
+    private boolean published;
+
     @Column(name = "created_at", insertable = false, updatable = false)
     private Instant createdAt;
 

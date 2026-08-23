@@ -38,4 +38,5 @@ public class RecipeUpdateRequest {
 
     private String cuisine;
     private String imageUrl;
+    private boolean published;
 }

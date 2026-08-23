@@ -1,9 +1,11 @@
 package com.wb.culinaryCode.controller;
 
 import com.wb.culinaryCode.model.recipe.rest.TagDTO;
+import com.wb.culinaryCode.security.AuthUser;
 import com.wb.culinaryCode.service.TagService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -17,8 +19,9 @@ public class TagController {
 
     private final TagService tagService;
 
+    /** Anonymous callers get the curated tags only. */
     @GetMapping
-    public ResponseEntity<List<TagDTO>> listTags() {
-        return ResponseEntity.ok(tagService.listTags());
+    public ResponseEntity<List<TagDTO>> listTags(@AuthenticationPrincipal AuthUser user) {
+        return ResponseEntity.ok(tagService.listTags(user == null ? null : user.id()));
     }
 }

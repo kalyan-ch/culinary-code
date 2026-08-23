@@ -32,9 +32,6 @@ public class RecipeCreateRequest {
     @Positive
     private Integer servings;
 
-    @NotNull
-    private UUID userId;
-
     private List<@Valid IngredientsDTO> ingredients;
 
     private List<@Valid RecipeStepDTO> steps;
@@ -43,4 +40,5 @@ public class RecipeCreateRequest {
 
     private String cuisine;
     private String imageUrl;
+    private boolean published;
 }

@@ -1,5 +1,6 @@
 package com.wb.culinaryCode.model.recipe;
 
+import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
@@ -26,4 +27,8 @@ public class Tag {
     private UUID id;
 
     private String name;
+
+    /** {@code null} marks a curated tag shared by everyone; otherwise the user who made it. */
+    @Column(name = "user_id")
+    private UUID userId;
 }
