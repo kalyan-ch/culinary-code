@@ -58,6 +58,12 @@ class SecurityRulesTest {
     }
 
     @Test
+    @DisplayName("an anonymous visitor may list ingredients")
+    void anonymousMayListIngredients() throws Exception {
+        mockMvc.perform(get("/api/v1/ingredients")).andExpect(status().isOk());
+    }
+
+    @Test
     @DisplayName("an anonymous visitor may not create a recipe")
     void anonymousMayNotCreate() throws Exception {
         mockMvc.perform(post("/api/v1/recipe/create")

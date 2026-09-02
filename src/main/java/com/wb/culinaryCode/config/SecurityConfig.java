@@ -64,7 +64,7 @@ public class SecurityConfig {
                         // The service still decides what each viewer may see: with no session
                         // that is published recipes only. Creating and editing stay closed.
                         .requestMatchers(HttpMethod.GET, "/api/v1/recipe", "/api/v1/recipe/**").permitAll()
-                        .requestMatchers(HttpMethod.GET, "/api/v1/tags").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/v1/tags", "/api/v1/ingredients").permitAll()
                         .anyRequest().authenticated())
                 // Without this the default entry point answers an unauthenticated API call with
                 // a redirect to a login page that doesn't exist, which the frontend sees as an
